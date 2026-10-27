@@ -1,7 +1,15 @@
+name: Deploy to LMS
+
+on:
+  push:
+    branches:
+      - main
+
 jobs:
   build:
     runs-on: ubuntu-latest
     outputs:
+      image: ${{ steps.meta.outputs.tags }}
       repo: ${{ steps.repo.outputs.repo }}
 
     steps:
@@ -21,19 +29,28 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # ЭТОТ ШАГ КРИТИЧЕСКИ ВАЖЕН: он делает имя репозитория маленьким (valeravoin, а не Valeravoin)
       - name: Set lowercase repository name
         id: repo
         run: echo "repo=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ steps.repo.outputs.repo }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
 
       - name: Build and push
         uses: docker/build-push-action@v7
         with:
           context: .
-          platforms: linux/amd64
+          platforms: linux/arm64,linux/amd64
           push: true
-          # Используем переменную из шага выше, а не github.repository напрямую
           tags: ghcr.io/${{ steps.repo.outputs.repo }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   deploy:
     needs: build
@@ -50,6 +67,7 @@ jobs:
 
           if [ "$HTTP_CODE" != "200" ]; then
             echo "Deployment failed with status code $HTTP_CODE"
+            echo "Response body:"
             cat response.txt
             exit 1
           fi
