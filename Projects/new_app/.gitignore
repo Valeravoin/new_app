@@ -1,0 +1,29 @@
+# Системные файлы Windows
+$Recycle.Bin/
+System Volume Information/
+pagefile.sys
+hiberfil.sys
+swapfile.sys
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Секреты
+.env
+.env.local
+
+# Docker
+db-data/
+
+# IDE
+.idea/
+*.swp
+*.swo
+
+# Тесты
+.pytest_cache/
+.coverage
+htmlcov/
