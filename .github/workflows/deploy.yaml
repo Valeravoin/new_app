@@ -45,7 +45,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v7
         with:
-          context: .
+          context: Projects/new_app
           platforms: linux/arm64,linux/amd64
           push: true
           tags: ghcr.io/${{ steps.repo.outputs.repo }}:${{ github.sha }}
