@@ -1,14 +1,8 @@
-name: Deploy to LMS
-
-on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:  # Эта строчка добавит кнопку ручного запуска
-
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      repo: ${{ steps.repo.outputs.repo }}
 
     steps:
       - name: Checkout code
@@ -27,13 +21,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # ЭТОТ ШАГ КРИТИЧЕСКИ ВАЖЕН: он делает имя репозитория маленьким (valeravoin, а не Valeravoin)
+      - name: Set lowercase repository name
+        id: repo
+        run: echo "repo=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
       - name: Build and push
         uses: docker/build-push-action@v7
         with:
           context: .
           platforms: linux/amd64
           push: true
-          tags: ghcr.io/${{ github.repository }}:${{ github.sha }}
+          # Используем переменную из шага выше, а не github.repository напрямую
+          tags: ghcr.io/${{ steps.repo.outputs.repo }}:${{ github.sha }}
 
   deploy:
     needs: build
@@ -45,7 +45,7 @@ jobs:
           HTTP_CODE=$(curl -s -o response.txt -w "%{http_code}" -X POST \
             -H "Content-Type: application/json" \
             -H "X-API-Key: ${{ secrets.LMS_API_KEY }}" \
-            -d '{"image":"ghcr.io/${{ github.repository }}:${{ github.sha }}","repository":"${{ github.repository }}"}' \
+            -d '{"image":"ghcr.io/${{ needs.build.outputs.repo }}:${{ github.sha }}","repository":"${{ github.repository }}"}' \
             https://lms.python-labs.ru/api/deploy-requests)
 
           if [ "$HTTP_CODE" != "200" ]; then
